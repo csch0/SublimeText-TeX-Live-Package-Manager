@@ -2,7 +2,12 @@ import sublime, sublime_plugin
 
 import re, subprocess, sys
 
-from .Progress import ProcessQueueManager
+try:
+	from .tex_live_package_manager.progress import ProcessQueueManager
+	from .tex_live_package_manager.tools import *
+except ValueError:
+	from tex_live_package_manager.progress import ProcessQueueManager
+	from tex_live_package_manager.tools import *
 
 class TlmgrWindowCommand(sublime_plugin.WindowCommand):
 
