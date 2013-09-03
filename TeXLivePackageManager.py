@@ -34,7 +34,7 @@ class TlmgrSimpleCommand(TlmgrWindowCommand):
 
 		# If error, ask for password
 		if stderr:
-			self.window.show_input_panel("Password:", "", on_done, None, None)
+			self.window.show_input_panel("Root Password:", "", on_done, None, None)
 		else:
 			callback()
 
