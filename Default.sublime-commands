@@ -1,0 +1,26 @@
+[
+	{
+		"caption": "TeX Live Package Manager: Update",
+		"command": "tlmgr_simple", "args": {"cmd": ["update", "--self"]}
+	},
+	{
+		"caption": "TeX Live Package Manager: Update Packages",
+		"command": "tlmgr_simple", "args": {"cmd": ["update", "--all"]}
+	},
+	{
+		"caption": "TeX Live Package Manager: Manage Schemes",
+		"command": "tlmgr_manage_schemes"
+	},
+	{
+		"caption": "TeX Live Package Manager: Manage Collections",
+		"command": "tlmgr_manage_collections"
+	},
+	{
+		"caption": "TeX Live Package Manager: Manage Packages",
+		"command": "tlmgr_manage_packages"
+	},
+	{
+		"caption": "TeX Live Package Manager: Show Log Panel",
+		"command": "show_panel", "args": {"panel": "output.tlmgr"}
+	}
+]
