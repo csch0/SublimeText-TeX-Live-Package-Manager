@@ -1,5 +1,7 @@
 import sublime, sublime_plugin
 
+import shutil
+
 class TlmgrClearCommand(sublime_plugin.TextCommand):
 
 	def run(self, edit):
@@ -10,8 +12,16 @@ class TlmgrAppendTextCommand(sublime_plugin.TextCommand):
 	def run(self, edit, string):
 		read_only = self.view.is_read_only()
 		self.view.set_read_only(False)
-		self.view.insert(edit, self.view.size(), string)
+		self.view.insert(edit, self.view.size(), string.replace("\r\n", "\n"))
 		self.view.set_read_only(read_only)
 
 		# Scroll to the end
 		self.view.show(self.view.size())
+
+def tlmgr():
+	s = sublime.load_settings("TeX Live Package Manager.sublime-settings")
+	for item in s.get("tlmgr_executable", "tlmgr"):
+		cmd = shutil.which(item)
+		if cmd:
+			return cmd
+	return "tlmgr"

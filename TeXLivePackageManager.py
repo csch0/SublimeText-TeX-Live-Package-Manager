@@ -47,7 +47,13 @@ class TlmgrSimpleCommand(TlmgrWindowCommand):
 
 		def on_done():
 			# Start the actual command
-			proc = subprocess.Popen(["sudo", "tlmgr"] + cmd, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+			if sublime.platform() == "windows":
+				# Close consol on windows
+				startupinfo = subprocess.STARTUPINFO()
+				startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+				proc = subprocess.Popen([tlmgr()] + cmd, startupinfo = startupinfo, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+			else:
+				proc = subprocess.Popen(["sudo", tlmgr()] + cmd, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
 
 			# Create output view
 			view = self.window.create_output_panel("tlmgr")
@@ -61,12 +67,15 @@ class TlmgrSimpleCommand(TlmgrWindowCommand):
 			# Wait for process to finish
 			proc.wait()
 
-		self.access_as_sudo(on_done)
+		if sublime.platform() == "windows":
+			on_done()
+		else:
+			self.access_as_sudo(on_done)
 
 
 class TlmgrInfoCommand(TlmgrWindowCommand):
 
-	command = ["tlmgr", "info"]
+	command = ["info"]
 	info_type = "packages"
 
 	def show_quick_panel(self):
@@ -109,7 +118,11 @@ class TlmgrInfoCommand(TlmgrWindowCommand):
 
 	def run_async(self):
 
-		proc = subprocess.Popen(self.command, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+		# Close consol on windows
+		startupinfo = subprocess.STARTUPINFO()
+		startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+		proc = subprocess.Popen([tlmgr()] + self.command, startupinfo=startupinfo, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 		communicate = proc.communicate();
 		stdout = communicate[0].decode(sys.getfilesystemencoding())
 		stderr = communicate[1].decode(sys.getfilesystemencoding())
@@ -117,7 +130,7 @@ class TlmgrInfoCommand(TlmgrWindowCommand):
 		self.items = []
 
 		for line in stdout.strip().split("\n"):
-			expr = re.search(r"(?P<i>[\si])\s(?P<name>.*):\s(?P<info>.*)", line)
+			expr = re.search(r"(?P<i>[\si])\s(?P<name>.*):\s(?P<info>.*)", line.rstrip())
 			if expr:
 				self.items += [{"name": expr.group("name"), "installed": expr.group("i") == "i", "info": expr.group("info")}]
 
@@ -126,7 +139,7 @@ class TlmgrInfoCommand(TlmgrWindowCommand):
 
 class TlmgrManageCollectionsCommand(TlmgrInfoCommand):
 
-	command = ["tlmgr", "info", "collections"]
+	command = ["info", "collections"]
 	info_type = "collections"
 
 
@@ -137,5 +150,5 @@ class TlmgrManagePackagesCommand(TlmgrInfoCommand):
 
 class TlmgrManageSchemesCommand(TlmgrInfoCommand):
 
-	command = ["tlmgr", "info", "schemes"]
+	command = ["info", "schemes"]
 	info_type = "schemes"
