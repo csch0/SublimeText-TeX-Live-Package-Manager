@@ -1,6 +1,6 @@
 import sublime, sublime_plugin
 
-import re, subprocess, sys
+import functools, re, subprocess, sys
 
 try:
 	from .tex_live_package_manager.progress import ProcessQueueManager
@@ -14,6 +14,12 @@ class TlmgrWindowCommand(sublime_plugin.WindowCommand):
 	messages = ["Running", "Finished"]
 
 	def run(self, **args):
+		# Get tlmgr_executable
+		self.tlmgr = tlmgr_executable()
+
+		# Create output panel
+		self.panel = self.window.get_output_panel("tlmgr")
+
 		manager = ProcessQueueManager()
 		manager.queue("tlmgr_manage_collections", lambda: self.run_async(**args), self.messages, lambda: self.run_post())
 
@@ -22,6 +28,9 @@ class TlmgrWindowCommand(sublime_plugin.WindowCommand):
 
 	def run_post(self):
 		pass
+
+	def on_data(self, d):
+		self.panel.run_command("tlmgr_append_text", {"string": d})
 
 
 class TlmgrSimpleCommand(TlmgrWindowCommand):
@@ -51,18 +60,17 @@ class TlmgrSimpleCommand(TlmgrWindowCommand):
 				# Close consol on windows
 				startupinfo = subprocess.STARTUPINFO()
 				startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-				proc = subprocess.Popen([tlmgr()] + cmd, startupinfo = startupinfo, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+				proc = subprocess.Popen([self.tlmgr] + cmd, startupinfo = startupinfo, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
 			else:
-				proc = subprocess.Popen(["sudo", tlmgr()] + cmd, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+				proc = subprocess.Popen(["sudo", self.tlmgr] + cmd, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
 
-			# Create output view
-			view = self.window.create_output_panel("tlmgr")
-			self.window.run_command("show_panel", {"panel": "output.tlmgr"})
+			sublime.set_timeout(lambda: self.window.run_command("show_panel", {"panel": "output.tlmgr"}), 0)
 
-			view.run_command("tlmgr_append_text", {"string": "### TeX Live Package Manager ### [%s]\n" % " ".join(cmd)})
+			line = "### TeX Live Package Manager ### [%s]\n" % " ".join(cmd)
+			sublime.set_timeout(functools.partial(self.on_data, line), 0)
 
-			for line in proc.stdout:
-				view.run_command("tlmgr_append_text", {"string": line.decode(sys.getfilesystemencoding())})
+			for line in iter(proc.stdout.readline, ''):
+				sublime.set_timeout(functools.partial(self.on_data, line.decode(sys.getfilesystemencoding())), 0)
 
 			# Wait for process to finish
 			proc.wait()
@@ -122,7 +130,7 @@ class TlmgrInfoCommand(TlmgrWindowCommand):
 		startupinfo = subprocess.STARTUPINFO()
 		startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-		proc = subprocess.Popen([tlmgr()] + self.command, startupinfo=startupinfo, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+		proc = subprocess.Popen([self.tlmgr] + self.command, startupinfo=startupinfo, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 		communicate = proc.communicate();
 		stdout = communicate[0].decode(sys.getfilesystemencoding())
 		stderr = communicate[1].decode(sys.getfilesystemencoding())

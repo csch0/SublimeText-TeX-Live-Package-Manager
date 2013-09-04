@@ -1,6 +1,6 @@
 [
 	{
-		"caption": "TeX Live Package Manager: Update",
+		"caption": "TeX Live Package Manager: Update tlmgr",
 		"command": "tlmgr_simple", "args": {"cmd": ["update", "--self"]}
 	},
 	{

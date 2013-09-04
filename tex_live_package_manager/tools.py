@@ -1,6 +1,6 @@
 import sublime, sublime_plugin
 
-import shutil
+import os.path, shutil
 
 class TlmgrClearCommand(sublime_plugin.TextCommand):
 
@@ -18,10 +18,15 @@ class TlmgrAppendTextCommand(sublime_plugin.TextCommand):
 		# Scroll to the end
 		self.view.show(self.view.size())
 
-def tlmgr():
+def tlmgr_executable():
 	s = sublime.load_settings("TeX Live Package Manager.sublime-settings")
 	for item in s.get("tlmgr_executable", "tlmgr"):
-		cmd = shutil.which(item)
+		if hasattr(shutil, 'which'):
+			cmd = shutil.which(item)
+		elif os.path.isfile(item):
+			cmd = item
+		else:
+			cmd = None
 		if cmd:
 			return cmd
 	return "tlmgr"
