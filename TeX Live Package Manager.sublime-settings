@@ -1,0 +1,5 @@
+{
+	// You can place tlmgr on your path or simple set an absolute
+	// path to the executable here.
+	"tlmgr_executable": ["tlmgr"]
+}
