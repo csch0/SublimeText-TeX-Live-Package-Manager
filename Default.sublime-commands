@@ -1,23 +1,23 @@
 [
 	{
 		"caption": "TeX Live Package Manager: Update tlmgr",
-		"command": "tlmgr_simple", "args": {"cmd": ["update", "--self"]}
+		"command": "tlmgr_simple", "args": {"cmd": ["update", "--self"], "sudo": true}
 	},
 	{
 		"caption": "TeX Live Package Manager: Update Packages",
-		"command": "tlmgr_simple", "args": {"cmd": ["update", "--all"]}
+		"command": "tlmgr_simple", "args": {"cmd": ["update", "--all"], "sudo": true}
 	},
 	{
 		"caption": "TeX Live Package Manager: Manage Schemes",
-		"command": "tlmgr_manage_schemes"
+		"command": "tlmgr_info", "args": {"cmd": ["info", "schemes"], "info_type": "schemes"}
 	},
 	{
 		"caption": "TeX Live Package Manager: Manage Collections",
-		"command": "tlmgr_manage_collections"
+		"command": "tlmgr_info", "args": {"cmd": ["info", "collections"], "info_type": "collections"}
 	},
 	{
 		"caption": "TeX Live Package Manager: Manage Packages",
-		"command": "tlmgr_manage_packages"
+		"command": "tlmgr_info", "args": {"cmd": ["info"], "info_type": "packages"}
 	},
 	{
 		"caption": "TeX Live Package Manager: Show Log Panel",

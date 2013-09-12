@@ -12,16 +12,45 @@ except ValueError:
 class TlmgrWindowCommand(sublime_plugin.WindowCommand):
 
 	messages = ["Running", "Finished"]
+	sudo = None
+
+	def check_sudo(self, callback):
+		proc = subprocess.Popen(["sudo", "-p", "", "-S", "id", "-u"], stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+		if self.sudo:
+			proc.stdin.write(bytes("%s\n" % self.sudo, sys.getfilesystemencoding()))
+			proc.stdin.flush()
+
+		# Capture output
+		stdout = proc.communicate()[0].decode(sys.getfilesystemencoding())
+		
+		if stdout != "0\n":
+			def on_done(s):
+				self.sudo = s
+				self.check_sudo(callback)			
+			self.window.show_input_panel("Root Password:", self.sudo if self.sudo else "", on_done, None, None)
+		else:
+			callback()
 
 	def run(self, **args):
 		# Get tlmgr_executable
 		self.tlmgr = tlmgr_executable()
 
+		# Get command
+		self.cmd = args.get("cmd", [])
+		self.info_type = args.get("info_type", "")
+		
 		# Create output panel
 		self.panel = self.window.get_output_panel("tlmgr")
 
-		manager = ProcessQueueManager()
-		manager.queue("tlmgr_manage_collections", lambda: self.run_async(**args), self.messages, lambda: self.run_post())
+		def on_access():
+			manager = ProcessQueueManager()
+			manager.queue("tlmgr_manage_collections", lambda: self.run_async(), self.messages, lambda: self.run_post())	
+
+		# Gain sudo access if required
+		if sublime.platform() != "windows" and args.get("sudo", False):
+			self.check_sudo(on_access)
+		else:
+			on_access()
 
 	def run_async(self):
 		pass
@@ -35,58 +64,55 @@ class TlmgrWindowCommand(sublime_plugin.WindowCommand):
 
 class TlmgrSimpleCommand(TlmgrWindowCommand):
 
-	def access_as_sudo(self, callback):
-		proc = subprocess.Popen(["sudo", "-p", "", "-S", "echo"], stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-		stdout, stderr = proc.communicate();
-
-		def on_done(s):
-			proc = subprocess.Popen(["sudo", "-p", "", "-S", "echo"], stdin = subprocess.PIPE)
-			proc.communicate(bytes("%s\n" % s, "utf-8"));
-
-			# Check for sudo again
-			self.access_as_sudo(callback)
-
-		# If error, ask for password
-		if stderr:
-			self.window.show_input_panel("Root Password:", "", on_done, None, None)
-		else:
-			callback()
-
-	def run_async(self, cmd):
-
-		def on_done():
-			# Start the actual command
-			if sublime.platform() == "windows":
-				# Close consol on windows
-				startupinfo = subprocess.STARTUPINFO()
-				startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-				proc = subprocess.Popen([self.tlmgr] + cmd, startupinfo = startupinfo, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
-			else:
-				proc = subprocess.Popen(["sudo", self.tlmgr] + cmd, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
-
-			sublime.set_timeout(lambda: self.window.run_command("show_panel", {"panel": "output.tlmgr"}), 0)
-
-			line = "### TeX Live Package Manager ### [%s]\n" % " ".join(cmd)
-			sublime.set_timeout(functools.partial(self.on_data, line), 0)
-
-			for line in iter(proc.stdout.readline, ''):
-				sublime.set_timeout(functools.partial(self.on_data, line.decode(sys.getfilesystemencoding())), 0)
-
-			# Wait for process to finish
-			proc.wait()
+	def run_async(self):
 
 		if sublime.platform() == "windows":
-			on_done()
+			# Close consol on windows
+			startupinfo = subprocess.STARTUPINFO()
+			startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+			proc = subprocess.Popen([self.tlmgr] + self.cmd, startupinfo = startupinfo, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
 		else:
-			self.access_as_sudo(on_done)
+			proc = subprocess.Popen(["sudo", "-S", self.tlmgr] + self.cmd, stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+			if self.sudo:
+				proc.stdin.write(bytes("%s\n" % self.sudo, sys.getfilesystemencoding()))
+				proc.stdin.flush()
 
+		sublime.set_timeout(lambda: self.window.run_command("show_panel", {"panel": "output.tlmgr"}), 0)
+
+		line = "### TeX Live Package Manager ### [%s]\n" % " ".join(self.cmd)
+		sublime.set_timeout(functools.partial(self.on_data, line), 0)
+
+		for line in proc.stdout:
+			sublime.set_timeout(functools.partial(self.on_data, line.decode(sys.getfilesystemencoding())), 0)
+
+		# Wait for process to finish
+		proc.wait()
 
 class TlmgrInfoCommand(TlmgrWindowCommand):
 
-	command = ["info"]
-	info_type = "packages"
+	items = []
 
-	def show_quick_panel(self):
+	def run_async(self):
+
+		if sublime.platform() == "windows":
+			# Close consol on windows
+			startupinfo = subprocess.STARTUPINFO()
+			startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+			proc = subprocess.Popen([self.tlmgr] + self.cmd, startupinfo = startupinfo, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+		else:
+			proc = subprocess.Popen([self.tlmgr] + self.cmd, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+
+		# Communicate
+		stdout = proc.communicate()[0].decode(sys.getfilesystemencoding())
+
+		self.items = []
+
+		for line in stdout.strip().split("\n"):
+			expr = re.search(r"(?P<i>[\si])\s(?P<name>.*):\s(?P<info>.*)", line.rstrip())
+			if expr:
+				self.items += [{"name": expr.group("name"), "installed": expr.group("i") == "i", "info": expr.group("info")}]
+
+	def run_post(self):
 		items = [["%s (%sinstalled)" % (item["name"], "" if item["installed"] else "not "), item["info"]] for item in self.items]
 		sublime.set_timeout(lambda: self.window.show_quick_panel(items, self.on_done), 0)
 
@@ -123,44 +149,3 @@ class TlmgrInfoCommand(TlmgrWindowCommand):
 					self.window.run_command("tlmgr_simple", {"cmd": ["update", "--force", item["name"]]})
 
 		sublime.set_timeout(lambda: self.window.show_quick_panel(items, on_done), 0)
-
-	def run_async(self):
-
-		if sublime.platform() == "windows":
-			# Close consol on windows
-			startupinfo = subprocess.STARTUPINFO()
-			startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-			proc = subprocess.Popen([self.tlmgr] + self.command, startupinfo = startupinfo, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
-		else:
-			proc = subprocess.Popen([self.tlmgr] + self.command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
-
-		# Communicate
-		communicate = proc.communicate();
-		stdout = communicate[0].decode(sys.getfilesystemencoding())
-		stderr = communicate[1].decode(sys.getfilesystemencoding())
-
-		self.items = []
-
-		for line in stdout.strip().split("\n"):
-			expr = re.search(r"(?P<i>[\si])\s(?P<name>.*):\s(?P<info>.*)", line.rstrip())
-			if expr:
-				self.items += [{"name": expr.group("name"), "installed": expr.group("i") == "i", "info": expr.group("info")}]
-
-		self.show_quick_panel()
-
-
-class TlmgrManageCollectionsCommand(TlmgrInfoCommand):
-
-	command = ["info", "collections"]
-	info_type = "collections"
-
-
-class TlmgrManagePackagesCommand(TlmgrInfoCommand):
-
-	pass
-
-
-class TlmgrManageSchemesCommand(TlmgrInfoCommand):
-
-	command = ["info", "schemes"]
-	info_type = "schemes"
