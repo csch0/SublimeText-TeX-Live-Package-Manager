@@ -130,7 +130,15 @@ class TlmgrInfoCommand(TlmgrWindowCommand):
 		startupinfo = subprocess.STARTUPINFO()
 		startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-		proc = subprocess.Popen([self.tlmgr] + self.command, startupinfo=startupinfo, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+		if sublime.platform() == "windows":
+			# Close consol on windows
+			startupinfo = subprocess.STARTUPINFO()
+			startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+			proc = subprocess.Popen([self.tlmgr] + self.command, startupinfo = startupinfo, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+		else:
+			proc = subprocess.Popen([self.tlmgr] + self.command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+
+		# Communicate
 		communicate = proc.communicate();
 		stdout = communicate[0].decode(sys.getfilesystemencoding())
 		stderr = communicate[1].decode(sys.getfilesystemencoding())
