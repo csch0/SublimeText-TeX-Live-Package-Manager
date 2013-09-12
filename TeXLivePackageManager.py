@@ -18,7 +18,7 @@ class TlmgrWindowCommand(sublime_plugin.WindowCommand):
 		proc = subprocess.Popen(["sudo", "-p", "", "-S", "id", "-u"], stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 		if self.sudo:
 			proc.stdin.write(bytes("%s\n" % self.sudo, sys.getfilesystemencoding()))
-			proc.stdin.flush()
+		proc.stdin.flush()
 
 		# Capture output
 		stdout = proc.communicate()[0].decode(sys.getfilesystemencoding())
@@ -66,6 +66,8 @@ class TlmgrSimpleCommand(TlmgrWindowCommand):
 
 	def run_async(self):
 
+		print()
+
 		if sublime.platform() == "windows":
 			# Close consol on windows
 			startupinfo = subprocess.STARTUPINFO()
@@ -75,7 +77,7 @@ class TlmgrSimpleCommand(TlmgrWindowCommand):
 			proc = subprocess.Popen(["sudo", "-S", self.tlmgr] + self.cmd, stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
 			if self.sudo:
 				proc.stdin.write(bytes("%s\n" % self.sudo, sys.getfilesystemencoding()))
-				proc.stdin.flush()
+			proc.stdin.flush()
 
 		sublime.set_timeout(lambda: self.window.run_command("show_panel", {"panel": "output.tlmgr"}), 0)
 
@@ -137,15 +139,15 @@ class TlmgrInfoCommand(TlmgrWindowCommand):
 				self.show_quick_panel()
 			elif i == 1 and item["installed"]:
 				if sublime.ok_cancel_dialog("Remove \"%s\"" % item["name"], "Remove"):
-					self.window.run_command("tlmgr_simple", {"cmd": ["remove", item["name"]]})
+					self.window.run_command("tlmgr_simple", {"cmd": ["remove", item["name"]], "sudo": True})
 			elif i == 1 and not item["installed"]:
 				if sublime.ok_cancel_dialog("Install \"%s\"" % item["name"], "Install"):
-					self.window.run_command("tlmgr_simple", {"cmd": ["install", item["name"]]})
+					self.window.run_command("tlmgr_simple", {"cmd": ["install", item["name"]], "sudo": True})
 			elif i == 2:
 				if sublime.ok_cancel_dialog("Update \"%s\"" % item["name"], "Update"):
-					self.window.run_command("tlmgr_simple", {"cmd": ["update", item["name"]]})
+					self.window.run_command("tlmgr_simple", {"cmd": ["update", item["name"]], "sudo": True})
 			elif i == 3:
 				if sublime.ok_cancel_dialog("Force Update \"%s\"" % item["name"], "Update"):
-					self.window.run_command("tlmgr_simple", {"cmd": ["update", "--force", item["name"]]})
+					self.window.run_command("tlmgr_simple", {"cmd": ["update", "--force", item["name"]], "sudo": True})
 
 		sublime.set_timeout(lambda: self.window.show_quick_panel(items, on_done), 0)
