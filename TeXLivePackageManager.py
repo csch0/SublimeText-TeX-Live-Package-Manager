@@ -126,10 +126,6 @@ class TlmgrInfoCommand(TlmgrWindowCommand):
 
 	def run_async(self):
 
-		# Close consol on windows
-		startupinfo = subprocess.STARTUPINFO()
-		startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
 		if sublime.platform() == "windows":
 			# Close consol on windows
 			startupinfo = subprocess.STARTUPINFO()
